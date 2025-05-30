@@ -1,0 +1,32 @@
+{
+  "name": "cc-backend",
+  "version": "1.0.0",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "nodemon -r @swc/register src/index.js",
+    "build": "swc src -d dist",
+    "start": "node dist/index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "morgan": "^1.10.0",
+    "pg": "^8.16.0",
+    "winston": "^3.17.0"
+  },
+  "devDependencies": {
+    "@swc/cli": "^0.7.7",
+    "@swc/core": "^1.11.29",
+    "@swc/helpers": "^0.5.17",
+    "@swc/register": "^0.1.10",
+    "nodemon": "^3.1.10",
+    "swc-node": "^1.0.0"
+  }
+}
