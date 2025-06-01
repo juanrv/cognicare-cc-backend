@@ -1,87 +1,40 @@
 import pool from "../config/db.js";
 import logger from "../config/logger.js";
+import * as EntrenadorModel from "../models/entrenador.model.js";
 
 /**
- * Registra un nuevo entrenador utilizando la función de base de datos.
- * @param {object} entrenadorData - Datos del entrenador a registrar.
- * @param {string} entrenadorData.pSiglaTipoDocumento - Sigla del tipo de documento.
- * @param {string} entrenadorData.pNombres - Nombres del entrenador.
- * @param {string} entrenadorData.pApellidos - Apellidos del entrenador.
- * @param {string} entrenadorData.pNumeroDocumento - Número de documento.
- * @param {string} entrenadorData.pCorreo - Correo electrónico.
- * @param {string[]} entrenadorData.pFacultadNombres - Array con nombres de las facultades.
- * @param {string} [entrenadorData.pFechaFin] - Fecha de fin del contrato (opcional, formato YYYY-MM-DD).
- * @returns {Promise<object>} El resultado de la función de base de datos.
+ * @file Contiene los servicios del administración
+ * /
+
+/**
+ * Servicio para registrar un nuevo entrenador.
+ * Llama al modelo de entrenador para interactuar con la base de datos.
+ * @async
+ * @param {object} datosParaRegistrar - Datos del entrenador a registrar. Ver parámetros en EntrenadorModel.registrar.
+ * @returns {Promise<object>} Objeto indicando éxito o fallo, y los datos del entrenador si es exitoso.
+ * @throws {Error} Si ocurre un error durante el proceso en la capa del modelo.
  */
-export const registrarEntrenador = async (entrenadorData) => {
-  const {
-    pSiglaTipoDocumento,
-    pNombres,
-    pApellidos,
-    pNumeroDocumento,
-    pCorreo,
-    pFacultadNombres,
-    pFechaFin = null,
-  } = entrenadorData;
-  logger.debug(
-    "[SERVICE] Intentando registrar nuevo entrenador con datos:",
-    entrenadorData
-  );
-
-  // La función de base de datos espera un array de parámetros en el orden correcto
-  const queryParams = [
-    pSiglaTipoDocumento,
-    pNombres,
-    pApellidos,
-    pNumeroDocumento,
-    pCorreo,
-    pFacultadNombres, // PG lo interpreta como un array de texto
-  ];
-
-  let queryString =
-    "SELECT * FROM CC.registrarEntrenadorUFT($1, $2, $3, $4, $5, $6";
-  if (pFechaFin) {
-    queryParams.push(pFechaFin);
-    queryString += ", $7";
-  }
-  queryString += ");";
+export const registrarEntrenador = async (datosParaRegistrar) => {
+  logger.debug('[SERVICIO_ADMIN] Solicitud para registrar nuevo entrenador recibida con datos: %o', datosParaRegistrar);
   try {
-    logger.debug(
-      `[SERVICE] Ejecutando query: ${queryString} con params: %o`,
-      queryParams
-    );
-    const result = await pool.query(queryString, queryParams);
-    logger.debug("[SERVICE] Resultado de la consulta: %o", result.rows);
+    // Llamar a la función del modelo
+    const resultadoDelModelo = await EntrenadorModel.registrar(datosParaRegistrar);
 
-    if (result.rows.length > 0) {
-      logger.info(
-        "[SERVICE] Entrenador registrado exitosamente a través de la BD."
-      );
-      logger.debug(
-        "[SERVICE] Data de la primera fila (result.rows[0]): %o",
-        result.rows[0]
-      );
-      // La función DB devuelve una tabla, tomamos la primera fila.
-      return { success: true, data: result.rows[0] };
+    if (resultadoDelModelo) {
+      // resultadoDelModelo es el objeto { mensaje, identrenador, detalles }
+      logger.info('[SERVICIO_ADMIN] Entrenador registrado exitosamente a través del modelo.', { data: resultadoDelModelo });
+      return { success: true, data: resultadoDelModelo };
     } else {
-      // Esto no debería pasar si la función DB siempre devuelve una fila con un mensaje.
-      // Pero es bueno tener un fallback.
-      logger.warn(
-        "[SERVICE] La función RegistrarEntrenadorUFT no devolvió filas.",
-        { queryParams }
-      );
-      return {
-        success: false,
-        message:
-          "No se pudo registrar al entrenador, la función no devolvió resultado.",
-      };
+      // Esto pasaría si el modelo devuelve null (ej. la función DB no devuelve filas)
+      logger.warn('[SERVICIO_ADMIN] El modelo de entrenador no devolvió un resultado para el registro.');
+      return { success: false, message: 'No se pudo completar el registro del entrenador, la operación en base de datos no arrojó resultados.' };
     }
   } catch (error) {
-    logger.error(
-      "[SERVICE] Error al registrar entrenador en la BD:",
-      error
-    );
-    // Podríamos querer devolver un mensaje más amigable o el mensaje del error de la BD
-    throw error; // Re-lanzamos el error para que el controlador lo maneje
+    logger.error('[SERVICIO_ADMIN] Error en el servicio al registrar entrenador:', error);
+    // El error ya fue logueado en el modelo. Aquí podríamos:
+    // 1. Re-lanzar el error para que el controlador lo maneje como un 500 genérico.
+    // 2. Devolver un objeto de error específico del servicio.
+    // Por ahora, re-lanzamos para mantener el comportamiento anterior del controlador.
+    throw error;
   }
 };
