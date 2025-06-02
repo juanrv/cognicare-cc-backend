@@ -3,8 +3,9 @@ import cors from "cors";
 import morgan from "morgan";
 import logger from "./config/logger.js";
 import authRoutes from "./routes/auth.routes.js";
-// import entrenadorRoutes from './routes/entrenador.routes.js';
 import adminRoutes from "./routes/admin.routes.js";
+import tipoDocumentoRoutes from "./routes/tipoDocumento.routes.js";
+import facultadRoutes from "./routes/facultad.routes.js";
 
 const app = express();
 const port = 3001;
@@ -31,10 +32,12 @@ app.get("/test", (req, res) => {
   res.status(200).send("¡El backend (reestructurado) está respondiendo!");
 });
 
-// Montamos las rutas
+// Rutas
 app.use("/api", authRoutes);
-//app.use('/api', entrenadorRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/tipos-documento", tipoDocumentoRoutes);
+app.use("/api/facultades", facultadRoutes);
+
 
 // Middleware para manejar 404
 app.use((req, res) => {
