@@ -67,4 +67,93 @@ export const registrar = async (datosEntrenador) => {
   }
 };
 
-// Aquí irían otras funciones del modelo para Entrenador: findById, findAll, update, delete, etc.
+/**
+ * Obtiene los entrenadores con sus facultades asignadas, con opción de filtrar por nombre de facultad.
+ * Ordena por apellidos y luego por nombres.
+ * @async
+ * @param {object} [filtros={}] - Objeto opcional con los filtros a aplicar.
+ * @param {string} [filtros.nombreFacultad] - Nombre de la facultad por la cual filtrar.
+ * @returns {Promise<Array<object>>} Un array de objetos de entrenadores.
+ * @throws {Error} Si ocurre un error durante la consulta.
+ */
+export const obtenerTodos = async (filtros = {}) => {
+  let queryString = 'SELECT * FROM CC.DetalleEntrenadoresFacultadesUV';
+  const queryParams = [];
+  const condicionesWhere = [];
+
+  if (filtros.nombreFacultad) {
+    queryParams.push(filtros.nombreFacultad);
+    // Usamos $N para el placeholder y lo añadimos al array de parámetros
+    condicionesWhere.push(`$${queryParams.length} = ANY(facultadesAsignadas)`);
+    logger.debug('[MODELO_ENTRENADOR] Aplicando filtro: facultadNombre = %s', filtros.nombreFacultad);
+  }
+
+  if (condicionesWhere.length > 0) {
+    queryString += ` WHERE ${condicionesWhere.join(' AND ')}`;
+  }
+
+  queryString += ' ORDER BY apellidosEntrenador, nombresEntrenador;';
+  
+  logger.debug('[MODELO_ENTRENADOR] Ejecutando obtenerTodos con query: %s, params: %o', queryString, queryParams);
+  try {
+    const { rows } = await pool.query(queryString, queryParams);
+    logger.info(`[MODELO_ENTRENADOR] Se encontraron ${rows.length} entrenadores (con filtros aplicados).`);
+    logger.debug('[MODELO_ENTRENADOR] Datos de entrenadores listados (filtrados): %o', rows);
+    return rows;
+  } catch (error) {
+    logger.error('[MODELO_ENTRENADOR] Error al listar entrenadores (filtrados) desde la BD:', error);
+    throw error;
+  }
+};
+
+
+/**
+ * Actualiza la información de un entrenador existente utilizando la función PL/pgSQL.
+ * @async
+ * @param {string} entrenadorID - El UUID del entrenador a modificar.
+ * @param {object} datosAActualizar - Campos a actualizar.
+ * @param {string} [datosAActualizar.pNuevosNombres]
+ * @param {string} [datosAActualizar.pNuevosApellidos]
+ * @param {string} [datosAActualizar.pNuevoCorreo]
+ * @param {Date|string|null} [datosAActualizar.pNuevaFechaFin]
+ * @param {string[]|null} [datosAActualizar.pNuevosNombresFacultades]
+ * @returns {Promise<object|null>} La primera fila del resultado de la función de base de datos.
+ * @throws {Error} Si ocurre un error durante la consulta, o si el entrenador no se encuentra.
+ */
+export const actualizar = async (entrenadorID, datosAActualizar) => {
+  const {
+    pNuevosNombres,
+    pNuevosApellidos,
+    pNuevoCorreo,
+    pNuevaFechaFin,
+    pNuevosNombresFacultades,
+  } = datosAActualizar;
+
+  const queryParams = [
+    entrenadorID,               // $1
+    pNuevosNombres,             // $2
+    pNuevosApellidos,           // $3
+    pNuevoCorreo,               // $4
+    pNuevaFechaFin,             // $5
+    pNuevosNombresFacultades,   // $6
+  ];
+
+  // Query para llamar a la función de BD ModificarInformacionEntrenadorUFT creadi de forma dinámica
+  const queryString = 'SELECT * FROM CC.ModificarInformacionEntrenadorUFT($1, $2, $3, $4, $5, $6);';
+
+  logger.debug('[MODELO_ENTRENADOR] Ejecutando actualizar con query: %s y params: %o', queryString, queryParams);
+  try {
+    const { rows } = await pool.query(queryString, queryParams);
+    logger.debug('[MODELO_ENTRENADOR] Filas devueltas por ModificarInformacionEntrenadorUFT: %o', rows);
+    if (rows.length > 0) {
+      logger.info('[MODELO_ENTRENADOR] Información de entrenador actualizada vía DB función, resultado: %o', rows[0]);
+      return rows[0];
+    }
+    logger.warn('[MODELO_ENTRENADOR] La función ModificarInformacionEntrenadorUFT no devolvió filas (inesperado).');
+    return null;
+  } catch (error) {
+    // La función de BD ahora lanza "Entrenador con ID % no encontrado." si no existe.
+    logger.error('[MODELO_ENTRENADOR] Error al ejecutar ModificarInformacionEntrenadorUFT en la BD:', error);
+    throw error;
+  }
+};

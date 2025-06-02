@@ -38,5 +38,33 @@ export const validacionesRegistroEntrenador = [
     .toDate(),
 ];
 
-// Aquí podrías añadir otras validaciones para otras rutas de admin
-// export const validacionesActualizarEntrenador = [ ... ];
+export const validacionesActualizarEntrenador = [
+  body('nuevosNombres')
+    .optional({ checkFalsy: true })
+    .trim()
+    .isString().withMessage('Los nuevos nombres deben ser texto.')
+    .isLength({ min: 2 }).withMessage('Los nuevos nombres deben tener al menos 2 caracteres.'),
+  body('nuevosApellidos')
+    .optional({ checkFalsy: true })
+    .trim()
+    .isString().withMessage('Los nuevos apellidos deben ser texto.')
+    .isLength({ min: 2 }).withMessage('Los nuevos apellidos deben tener al menos 2 caracteres.'),
+  body('nuevoCorreo')
+    .optional({ checkFalsy: true })
+    .trim()
+    .isEmail().withMessage('El nuevo correo debe ser un correo electrónico válido.')
+    .normalizeEmail(),
+  body('nuevaFechaFin')
+    .optional({ nullable: true, checkFalsy: true })
+    .isISO8601().withMessage('La nueva fecha de fin debe tener formato YYYY-MM-DD.')
+    .toDate(),
+  body('nuevosNombresFacultades')
+    .optional({ nullable: true })
+    .isArray().withMessage('Las nuevas facultades deben ser un array.')
+    .custom((value) => {
+      if (value && !value.every(item => typeof item === 'string' && item.trim() !== '')) {
+        throw new Error('Cada nombre de facultad en el array debe ser un texto no vacío.');
+      }
+      return true;
+    }),
+];
