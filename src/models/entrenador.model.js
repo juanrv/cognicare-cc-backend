@@ -62,8 +62,12 @@ export const registrar = async (datosEntrenador) => {
     logger.warn('[MODELO_ENTRENADOR] La función RegistrarEntrenadorUFT no devolvió filas.');
     return null; // Indica que la función DB no devolvió datos, el servicio lo manejará.
   } catch (error) {
-    logger.error('[MODELO_ENTRENADOR] Error al ejecutar RegistrarEntrenadorUFT en la BD:', error);
-    throw error; // Re-lanzamos el error para que la capa de servicio lo maneje
+    if (error.code === '23505') { // Violación de unicidad
+      logger.warn(`[MODELO_ENTRENADOR] Violación de unicidad detectada en BD al registrar entrenador: ${error.message}`, { detail: error.detail, hint: error.hint });
+    } else { // Otros errores de BD
+      logger.error('[MODELO_ENTRENADOR] Error al ejecutar RegistrarEntrenadorUFT en la BD:', error);
+    }
+    throw error; // Siempre relanzar para que el servicio lo maneje
   }
 };
 
@@ -154,6 +158,35 @@ export const actualizar = async (entrenadorID, datosAActualizar) => {
   } catch (error) {
     // La función de BD ahora lanza "Entrenador con ID % no encontrado." si no existe.
     logger.error('[MODELO_ENTRENADOR] Error al ejecutar ModificarInformacionEntrenadorUFT en la BD:', error);
+    throw error;
+  }
+};
+
+/**
+ * Desactiva un entrenador en la base de datos estableciendo su fechaFin a la actual.
+ * Llama a la función PL/pgSQL CC.DesactivarEntrenadorUFT.
+ * @async
+ * @param {string} entrenadorID - El UUID del entrenador a desactivar.
+ * @returns {Promise<object|null>} La primera fila del resultado de la función de base de datos
+ * (que contiene mensaje, entrenadorId, exito), o null si no hay resultado.
+ * @throws {Error} Si ocurre un error durante la consulta.
+ */
+export const desactivar = async (entrenadorID) => {
+  const queryString = 'SELECT * FROM CC.DesactivarEntrenadorUFT($1);';
+  const queryParams = [entrenadorID];
+
+  logger.debug('[MODELO_ENTRENADOR] Ejecutando desactivar con query: %s y params: %o', queryString, queryParams);
+  try {
+    const { rows } = await pool.query(queryString, queryParams);
+    logger.debug('[MODELO_ENTRENADOR] Filas devueltas por DesactivarEntrenadorUFT: %o', rows);
+    if (rows.length > 0) {
+      logger.info('[MODELO_ENTRENADOR] Desactivación de entrenador procesada por DB función, resultado: %o', rows[0]);
+      return rows[0]; 
+    }
+    logger.warn('[MODELO_ENTRENADOR] La función DesactivarEntrenadorUFT no devolvió filas (inesperado).');
+    return null;
+  } catch (error) {
+    logger.error('[MODELO_ENTRENADOR] Error al ejecutar DesactivarEntrenadorUFT en la BD:', error);
     throw error;
   }
 };

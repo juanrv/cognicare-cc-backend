@@ -49,11 +49,27 @@ app.use((req, res) => {
 
 // Middleware de manejo de errores global
 app.use((err, req, res, next) => {
-  logger.error("--- [ERROR_HANDLER] Error no controlado ---", err);
-  res.status(err.status || 500).json({
-    message: err.message || "Error interno del servidor.",
-    // Considera no enviar el stack en producción por seguridad
-    stack: process.env.NODE_ENV === "development" ? err.stack : undefined,
+  const statusCode = err.statusCode || err.status || 500;
+  const esErrorDeCliente = statusCode >= 400 && statusCode < 500;
+
+  if (esErrorDeCliente) {
+    logger.warn(`--- [ERROR_HANDLER] Error de cliente (${statusCode}) --- ${err.message}`, {
+      path: req.path,
+      method: req.method,
+      // Si err.errors existe (de express-validator), también se podría loguear aquí
+      ...(err.errors && { validationErrors: err.errors })
+    });
+  } else {
+    // Para errores de servidor, logueamos el objeto err completo para obtener el stack trace
+    logger.error('--- [ERROR_HANDLER] Error de servidor no controlado ---', err);
+  }
+  
+  res.status(statusCode).json({
+    message: err.message || (esErrorDeCliente ? 'Error en la petición.' : 'Error interno del servidor.'),
+    // Solo enviar stack en desarrollo Y si NO es un error de cliente
+    stack: (process.env.NODE_ENV === 'development' && !esErrorDeCliente) ? err.stack : undefined,
+    // Enviar detalles de validación si existen y es error de cliente
+    ...(esErrorDeCliente && err.errors && { errors: err.errors }) 
   });
 });
 

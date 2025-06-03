@@ -1,7 +1,5 @@
 import * as AdminService from '../services/admin.service.js';
 import logger from '../config/logger.js';
-import { checkCamposRequeridos, checkArrayNoVacio } from '../utils/validaciones.utils.js';
-import { validationResult } from 'express-validator';
 
 /**
  * @file Controlador para manejar las funcionalidades de administración
@@ -16,16 +14,9 @@ import { validationResult } from 'express-validator';
 export const registrarEntrenador = async (req, res, next) => {
   logger.info('[CTRL] Petición recibida para registrar nuevo entrenador.', { body: req.body });
 
-  // Obtener los errores de validación de la petición
-  const erroresValidacion = validationResult(req);
-  if (!erroresValidacion.isEmpty()) {
-    logger.warn('[CTRL_ADMIN] Fallaron las validaciones de entrada.', { errores: erroresValidacion.array() });
-    return res.status(400).json({ message: "Errores de validación.", errors: erroresValidacion.array() });
-  }
 
   const { facultadNombres, siglaTipoDocumento, nombres, apellidos, numeroDocumento, correo, fechaFin } = req.body;
 
-  // Si todas las validaciones pasan, continuamos...
   try {
     const entrenadorData = {
       pSiglaTipoDocumento: siglaTipoDocumento,
@@ -108,14 +99,7 @@ export const actualizarInformacionEntrenador = async (req, res, next) => {
   const { entrenadorID } = req.params; 
   logger.info(`[CTRL_ADMIN] Petición recibida para actualizar entrenador ID: ${entrenadorID}`, { body: req.body });
 
-  const erroresValidacion = validationResult(req);
-  if (!erroresValidacion.isEmpty()) {
-    logger.warn('[CTRL_ADMIN] Fallaron las validaciones de entrada para actualizar entrenador.', { errores: erroresValidacion.array() });
-    return res.status(400).json({ message: "Errores de validación.", errors: erroresValidacion.array() });
-  }
-
   // Los datos a actualizar vienen del cuerpo.
-  // No necesitamos siglaTipoDocumentoActual ni numeroDocumentoActual del body.
   const {
     nuevosNombres,
     nuevosApellidos,
@@ -124,7 +108,8 @@ export const actualizarInformacionEntrenador = async (req, res, next) => {
     nuevosNombresFacultades
   } = req.body;
 
-  const datosAActualizar = { // Solo pasamos los campos que pueden cambiar
+  // Solo pasamos los campos que pueden cambiar
+  const datosAActualizar = { 
     pNuevosNombres: nuevosNombres,
     pNuevosApellidos: nuevosApellidos,
     pNuevoCorreo: nuevoCorreo,
@@ -160,6 +145,40 @@ export const actualizarInformacionEntrenador = async (req, res, next) => {
     }
   } catch (error) {
     logger.error('[ERROR_CTRL_ADMIN] Error en actualizarInformacionEntrenador:', error);
+    next(error);
+  }
+};
+
+/**
+ * Controlador para desactivar un entrenador.
+ * El ID del entrenador viene en req.params.
+ * @async
+ */
+export const desactivarEntrenador = async (req, res, next) => {
+  const { entrenadorID } = req.params;
+  logger.info(`[CTRL_ADMIN] Petición recibida para desactivar entrenador ID: ${entrenadorID}`);
+
+  // La validación del UUID ya se hace en la ruta con express-validator
+
+  try {
+    const serviceResult = await AdminService.desactivarEntrenador(entrenadorID);
+
+    // El servicio ahora devuelve { success: true, message: ..., data: { entrenadorId: ... } }
+    // o lanza un error con statusCode.
+    if (serviceResult.success) {
+      logger.info('[CTRL_ADMIN] Entrenador desactivado exitosamente.', { entrenadorId: serviceResult.data.entrenadorId });
+      return res.status(200).json({
+        message: serviceResult.message,
+        entrenadorId: serviceResult.data.entrenadorId
+      });
+    } else {
+      // Este bloque es menos probable que se alcance si el servicio siempre lanza errores
+      // en caso de fallo, pero lo mantenemos por robustez.
+      logger.warn('[CTRL_ADMIN] Fallo no esperado al desactivar entrenador (vía servicio).', { message: serviceResult.message });
+      return res.status(serviceResult.statusCode || 400).json({ message: serviceResult.message || 'No se pudo desactivar al entrenador.' });
+    }
+  } catch (error) {
+    logger.error('[ERROR_CTRL_ADMIN] Error en desactivarEntrenador:', error);
     next(error);
   }
 };
