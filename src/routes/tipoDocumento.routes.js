@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { obtenerTiposDocumento } from '../controllers/tipoDocumento.controller.js';
-import { verificarToken } from '../middlewares/verificarToken.js';
+import { verificarToken } from '../middlewares/verificarToken.middleware.js';
 
 const router = Router();
 

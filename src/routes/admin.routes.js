@@ -1,8 +1,8 @@
 import { Router } from "express";
 import { param } from "express-validator";
 import { listarTodosLosEntrenadores, registrarEntrenador, actualizarInformacionEntrenador, desactivarEntrenador } from "../controllers/admin.controller.js";
-import { verificarToken } from "../middlewares/verificarToken.js";
-import { isAdmin } from "../middlewares/verificarRoles.js";
+import { verificarToken } from "../middlewares/verificarToken.middleware.js";
+import { isAdmin } from "../middlewares/verificarRoles.middleware.js";
 import { validacionesRegistroEntrenador, validacionesCompletasActualizarEntrenador, validacionesDesactivarEntrenador} from "../validators/admin.validators.js";
 import { manejarResultadosValidacion } from "../middlewares/validation.middleware.js";
 
